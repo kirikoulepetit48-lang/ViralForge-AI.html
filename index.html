@@ -8,10 +8,10 @@ body{background:#0a0a0a;color:white;font-family:system-ui;padding:18px;max-width
 h1{text-align:center;background:linear-gradient(90deg,#ff0055,#ff8a00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:28px}
 input,select{width:100%;padding:16px;border-radius:14px;border:0;background:#1e1e1e;color:white;margin:8px 0;font-size:16px;box-sizing:border-box}
 button{width:100%;padding:18px;border-radius:14px;border:0;background:linear-gradient(90deg,#ff0055,#ff8a00);color:white;font-weight:900;font-size:18px;cursor:pointer}
-.card{background:#1a1a1a;border-radius:16px;padding:16px;margin:12px 0;border-left:4px solid #ff0055}
-.time{color:#ff8a00;font-weight:800;font-size:14px}
-#paywall{display:none;position:fixed;inset:0;background:#000e;padding:40px 20px;text-align:center;z-index:99}
-#paywall div{background:#1a1a1a;padding:30px;border-radius:20px;max-width:380px;margin:100px auto}
+.card{background:#1a1a1a;border-radius:16px;padding:16px;margin:12px 0;border-left:4px solid #ff0055;white-space:pre-wrap;line-height:1.5}
+.time{color:#ff8a00;font-weight:800;font-size:13px;display:block;margin-bottom:6px}
+#paywall{display:none;position:fixed;inset:0;background:#000f;padding:20px;text-align:center;z-index:99;overflow:auto}
+#paywall div{background:#1a1a1a;padding:30px;border-radius:20px;max-width:380px;margin:80px auto}
 #paywall a{display:block;background:#00c853;color:white;padding:18px;border-radius:14px;text-decoration:none;font-weight:900;margin-top:20px}
 #result{display:none}
 .free{color:#00e676;text-align:center;font-size:13px;margin:8px}
@@ -19,7 +19,7 @@ button{width:100%;padding:18px;border-radius:14px;border:0;background:linear-gra
 </head>
 <body>
 <h1>🔥 ViralForge AI</h1>
-<p class="free" id="freeInfo">Essai gratuit: 2 générations restantes</p>
+<p class="free" id="freeInfo"></p>
 
 <input id="topic" placeholder="Ex: Football, Makeup, Crypto...">
 <select id="style"><option>Style Choc ⚡</option><option>Style Éducatif 🧠</option><option>Style Storytelling 📖</option></select>
@@ -28,14 +28,17 @@ button{width:100%;padding:18px;border-radius:14px;border:0;background:linear-gra
 <div id="result"></div>
 <button id="copyBtn" style="display:none;background:white;color:black;margin-top:12px" onclick="copyIt()">📋 COPIER</button>
 
-<!-- PAYWALL -->
 <div id="paywall">
   <div>
     <h2>🚫 Limite gratuite atteinte</h2>
-    <p>Tu as utilisé tes 2 essais gratuits.<br>Débloque illimité pour continuer à générer des scripts viraux!</p>
+    <p>Tu as utilisé tes 2 essais gratuits.<br>Débloque illimité!</p>
     <a href="https://pay.fondeka.com/p/8VFF74Z22" target="_blank">💳 DÉBLOQUER - PAYER MAINTENANT</a>
-    <p style="font-size:12px;color:#888;margin-top:15px">Après paiement, envoie la preuve sur WhatsApp pour activation</p>
+    <p style="font-size:12px;color:#888;margin-top:15px">Après paiement, envoie preuve WhatsApp pour code VIP</p>
     <button style="background:#333;margin-top:10px" onclick="document.getElementById('paywall').style.display='none'">Fermer</button>
+    <div style="margin-top:20px">
+      <input id="vip" placeholder="Entre ton code VIP" style="text-align:center">
+      <button onclick="checkVip()" style="background:white;color:black;margin-top:8px">ACTIVER VIP</button>
+    </div>
   </div>
 </div>
 
@@ -43,20 +46,18 @@ button{width:100%;padding:18px;border-radius:14px;border:0;background:linear-gra
 const BACKEND="https://viralforge-ai-backend-html.onrender.com";
 const MAX_FREE=2;
 let last="";
-
 function getCount(){return parseInt(localStorage.getItem('vf_count')||'0')}
 function setCount(n){localStorage.setItem('vf_count',n); updateFree()}
-function updateFree(){let r=MAX_FREE-getCount(); document.getElementById('freeInfo').innerText = r>0 ? `Essai gratuit: ${r} génération${r>1?'s':''} restante${r>1?'s':''}` : `Essai gratuit épuisé`; }
-
+function updateFree(){let r=MAX_FREE-getCount(); document.getElementById('freeInfo').innerText = r>0 ? `Essai gratuit: ${r} génération restante` : `Essai gratuit épuisé - Passe VIP` }
 updateFree();
 
 async function generate(){
-  if(getCount()>=MAX_FREE){document.getElementById('paywall').style.display='block'; return}
+  if(getCount()>=MAX_FREE && localStorage.getItem('vf_vip')!=='VIP2026'){document.getElementById('paywall').style.display='block'; return}
   const topic=document.getElementById('topic').value.trim();
   if(!topic) return alert("Mets un sujet!");
   const btn=document.getElementById('btn'), res=document.getElementById('result');
-  btn.innerText="⏳ GÉNÉRATION (30s max)..."; btn.disabled=true;
-  res.style.display="block"; res.innerHTML="⏰ Compte à rebours en cours...";
+  btn.innerText="⏳ GÉNÉRATION..."; btn.disabled=true;
+  res.style.display="block"; res.innerHTML="⏰ Connexion IA... (30s si Render dort)";
 
   try{
     const r=await fetch(`${BACKEND}/generate`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({topic,style:document.getElementById('style').value})});
@@ -65,29 +66,26 @@ async function generate(){
     let clean=data.script.replace(/\*\*/g,'').replace(/###/g,'').replace(/##/g,'').replace(/---/g,'').trim();
     last=clean;
 
-    // Découpe pour compte à rebours
-    let html=`<div class="card"><span class="time">⏱️ 0-5s - HOOK CHOC</span><br>${extract(clean,'0-5','5-12')}</div>`;
-    html+=`<div class="card" style="border-color:#ff8a00"><span class="time">⏱️ 5-20s - 3 SECRETS / VALEUR</span><br>${extract(clean,'5-12','20-30')}</div>`;
-    html+=`<div class="card" style="border-color:#00e676"><span class="time">⏱️ 20-30s - CTA VIRAL</span><br>${extract(clean,'20-30','')}</div>`;
-    html+=`<div style="margin-top:15px;white-space:pre-wrap;font-size:14px;color:#aaa">${clean}</div>`;
+    // Découpage intelligent
+    let lines=clean.split('\n').filter(l=>l.trim()!='');
+    let third=Math.ceil(lines.length/3);
+    let part1=lines.slice(0,third).join('\n');
+    let part2=lines.slice(third,third*2).join('\n');
+    let part3=lines.slice(third*2).join('\n');
+
+    let html=`<div class="card"><span class="time">⏱️ 0-5s - HOOK CHOC (Accroche)</span>${part1}</div>`;
+    html+=`<div class="card" style="border-color:#ff8a00"><span class="time">⏱️ 5-20s - 3 SECRETS / VALEUR</span>${part2}</div>`;
+    html+=`<div class="card" style="border-color:#00e676"><span class="time">⏱️ 20-30s - CTA VIRAL</span>${part3}</div>`;
     
     res.innerHTML=html;
     document.getElementById('copyBtn').style.display="block";
-    setCount(getCount()+1);
-    if(getCount()>=MAX_FREE){setTimeout(()=>document.getElementById('paywall').style.display='block',1500)}
+    if(localStorage.getItem('vf_vip')!=='VIP2026') setCount(getCount()+1);
+    if(getCount()>=MAX_FREE && localStorage.getItem('vf_vip')!=='VIP2026'){setTimeout(()=>document.getElementById('paywall').style.display='block',1200)}
   }catch(e){res.innerText="Erreur: "+e.message}
   btn.innerText="GÉNÉRER LE SCRIPT 🚀"; btn.disabled=false;
 }
-
-function extract(text,start,end){
-  try{
-    let s=text.toLowerCase().indexOf(start);
-    if(s==-1) return text.substring(0,200)+"...";
-    let e=end ? text.toLowerCase().indexOf(end) : text.length;
-    return text.substring(s, e>0?e:text.length).substring(0,400);
-  }catch{return text.substring(0,300)}
-}
 function copyIt(){navigator.clipboard.writeText(last); alert("Copié! 📋")}
+function checkVip(){if(document.getElementById('vip').value==='VIP2026'){localStorage.setItem('vf_vip','VIP2026'); alert('VIP Activé! Illimité 🔓'); document.getElementById('paywall').style.display='none'; updateFree();}else alert('Code invalide')}
 </script>
 </body>
 </html>
